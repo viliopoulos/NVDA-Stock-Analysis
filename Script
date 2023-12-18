@@ -1,0 +1,115 @@
+import pandas as pd
+import numpy as np
+data = pd.read_csv('NVDA.csv',index_col=0, parse_dates=True)
+#data = pd.read_csv('NVDA.csv',index_col=0)
+#data.index=data1.index.astype('datetime64[ns]')
+
+stock = data['Close']
+
+# print all the outputs in a cell
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = "all"
+
+#Set to 2 decimal places, and display all columns (and up to 300 rows)
+pd.set_option('display.float_format', lambda x: '%.2f' % x)
+pd.set_option('display.max_columns', None)
+#pd.set_option('display.max_rows', 300)
+
+%pylab inline
+stock.plot()
+
+stock.head()
+stock.tail()
+
+### When is the first date this stock close at more than 130 dollars?
+stock[stock.values > 130].index[0]
+
+### After stock price hit 130 dollar, how many trading days it took to reach the historical high?
+FirstDay_hit130 = stock[stock.values >= 130].index[0]
+FirstDay_hit130
+Date_hit_max = stock.nlargest(1).index[0]
+Date_hit_max
+stock_130_max = stock[FirstDay_hit130 : Date_hit_max]
+stock_130_max.head(1)
+stock_130_max.tail(1)
+len(stock_130_max)
+### Find the top 5 largest one-day % gain (in % compared to the closing cost of the previous trading day). Make sure that your output is a Series object that shows both date and the % gain.
+stock.head()
+stock.shift(-1).head()
+((stock.shift(-1) - stock)/stock*100).nlargest()
+
+###  With following investment strategy: buy on day 1, sell on day 3. If based on this strategy, what's the most dollars amount you can lose in one trading?
+stock.head()
+stock.shift(-2).head()
+(stock - stock.shift(-2)).nlargest()
+ThreeDays_drop_max = (stock - stock.shift(-2)).nlargest(1).values[0]
+ThreeDays_drop_max
+FirstDay = (stock - stock.shift(-2)).nlargest(1).index[0]
+FirstDay
+stock[stock.index >= FirstDay].head()
+ThirdDay = stock[stock.index >= FirstDay].index[2]
+ThirdDay
+print("The buying date is " + str(FirstDay))
+print("The selling date is " + str(ThirdDay) )
+print("Total dollar lost is $" + str(ThreeDays_drop_max) )
+#Manually verify the stock price close to those 3 days
+stock['2020-09-01':'2020-09-10']
+
+### In which days did we observe that the price has increased of more than 60% within the 9 preceding trading sessions? Report your result as a Series (d,gain) where *d* is the trading session date when the increase was observed and *gain* is the maximum percentage gain (%) observed over the 9 days preceding session(today compare with previous 9 trading days).
+stock.head(10)
+stock.rolling(10).min().head(10)
+rol_min=stock.rolling(10).min()
+gain_boolean_mask = ((stock - rol_min)/rol_min) > 0.6
+(gain_boolean_mask).sum()
+rol_min[gain_boolean_mask]
+stock[gain_boolean_mask]
+(stock[gain_boolean_mask] - rol_min[gain_boolean_mask]) \
+    / rol_min[gain_boolean_mask] * 100
+((stock[gain_boolean_mask] - rol_min[gain_boolean_mask]) \
+    / rol_min[gain_boolean_mask] * 100).nlargest(1).index[0]
+### What was the **worst** possible "buy&sell" operation? Find the two days x and y so that the % loss resulting from buying in x and selling in y (with y after x) is maximized.
+#### *Hint:* Use method cummax() or method cummin(). *Cummax/Cummin* returns the maximum/minimum value encountered so far. Make sure to return the trading days x and y, as well as the % loss resulting from buying in x and selling in y.
+#### (Fill in blank for the buying and selling dates in Camino with the format 'buying-date/selling-date' (for example, 2001-01-01/2010-12-31)
+
+**Solution Note** . Need to 'buy'(high) first, then 'sell'(low) later. High need to be historic high. .cummax will hold the highest price history, So the cummax will be the buying date and current be the selling date. When use .cummax, should be (cummax - current)/current if take .nlargest(1), then that's our selling date info.
+
+stock[:5]
+stock.cummax()[:5]
+max_from_now = stock.cummax()
+y1 = ((max_from_now - stock)/ stock).nlargest(1).index[0]
+y1
+y1 = ((stock - max_from_now)/ stock).nsmallest(1).index[0]
+y1
+stock[y1]
+x1 = stock[stock == max_from_now[y1]].index[0]
+x1
+stock[x1]
+print('The worst buy & sell combination is:\n')
+print('First buy on ' + str(x1) +', when the price was ' + 
+      str(stock[x1]))
+print('Then sell on ' + str(y1) +', when the price was ' +
+      str(stock[y1]))
+print('The loss is ' + str((stock[x1] - stock[y1]) * 100 / stock[x1]) + 
+      '%')
+
+**Solution Notes**: Buy high then sell low.
+If use .cummin(). Need to know lowest in the future, so need to flip the stock, most recent dated first. If don't flip, .cummin() will return the 'history' low, which is not helpful.
+
+After know the future low, so "(current-future low)/current" will be the delta, then take .nlargest(1), that will be our buying date. 
+
+minimum_from_now_on = stock.sort_index(ascending=False).cummin()
+stock.sort_index(ascending=False)[:5]
+minimum_from_now_on[:5]
+x = ((stock - minimum_from_now_on) / stock).nlargest(1).index[0]
+x
+stock[x]
+y = stock[stock == minimum_from_now_on[x]].index[0]
+y
+stock[y]
+print('The worst buy & sell combination is:\n')
+print('First buy on ' + str(x) +', when the price was ' + 
+          str(stock[x]))
+print('Then sell on ' + str(y) +', when the price was ' + 
+          str(stock[y]))
+print('The loss is ' + str((stock[x] - stock[y]) * 100 / stock[x]) + '%')
+
